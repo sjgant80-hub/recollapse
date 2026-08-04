@@ -1,0 +1,7 @@
+[
+  {
+    "mutation": "< → <=",
+    "snippet": "for (let t = 16; t < 64; t++) { const s0 = rotr(w[t - 15], 7) ^ rotr(w[t - 15], 18) ^ (w[t",
+    "reason": "SHA-256 message-schedule loop over a fixed Uint32Array(64). Flipping t<64 to t<=64 runs one extra iteration (t=64) that WRITES w[64] — out of bounds on the length-64 typed array, so the write is silently dropped — while READING only already-computed in-bounds words (w[49],w[62],w[48],w[57]). Words w[0..63] used by the compression rounds are untouched, so both canonical SHA-256 vectors (empty and \"abc\") still hold. Verified empirically: mutant output byte-identical."
+  }
+]

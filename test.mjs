@@ -3,7 +3,7 @@
 // is saved, and re-collapsing the SAME event DEEPENS it (never duplicates), journaled newest-first, never lost.
 // The choice is always the user's (you can only collapse a reading you actually walked). Deterministic, fuzz-safe.
 import R from './recollapse.mjs';
-const { sha256, eventId, newSession, rise, walk, collapse, seal, newStore, journal, history, recall, stats, depth, shape, branches, LENSES, readyToSeal, GUARDRAIL, exportStore, importStore } = R;
+const { sha256, eventId, newSession, rise, walk, collapse, seal, newStore, journal, history, recall, stats, depth, shape, branches, lens, LENSES, readyToSeal, GUARDRAIL, exportStore, importStore } = R;
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ FAIL ') + m); };
@@ -29,12 +29,19 @@ console.log('\n=== §2 · THE FIVE STEPS — a real state machine (name → rise
   ok(!collapse(s, 'door').ok, 'you can only collapse a reading you ACTUALLY walked — not one you skipped');
   ok(collapse(s, 'taught').ok && s.chosen === 'taught', 'collapsing chooses one walked reading (the choice is yours)');
   ok(readyToSeal(s), 'and now it is ready to seal');
+  // readyToSeal needs ALL of: a session, a chosen key, AND that reading still walked — not any one of them.
+  ok(!readyToSeal({ chosen: 'taught', walked: {} }), 'chosen but the reading was un-walked → NOT ready (you cannot seal a reading you no longer hold)');
+  ok(!readyToSeal({ chosen: '', walked: { '': 'x' } }), 'no real choice made (empty chosen) → NOT ready, even if a reading exists');
+  ok(!readyToSeal({ walked: { peer: 'x' } }), 'a walked reading with nothing chosen → NOT ready');
 }
 
 console.log('\n=== §3 · THE BRANCH-WALK SPIRALS, it does not orbit (the golden-offset upgrade) ===');
 {
   const b = branches();
   ok(b.length === LENSES.length && b[0].key === 'peer', "the readings load, first is the peer one (\"it's all good\")");
+  ok(lens('peer') && lens('peer').key === 'peer', 'lens(key) resolves to the EXACT matching reading — not a neighbour');
+  ok(lens('taught').key === 'taught' && lens('protected').key === 'protected', 'every real lens key resolves to its own reading');
+  ok(lens('nope') === null && lens('') === null, 'an unknown reading key resolves to null (no false match)');
   const angles = b.map(x => Math.round(x.angle));
   ok(new Set(angles).size === angles.length, 'every reading sits at a DISTINCT golden-angle — walking them spirals through different meanings');
   let minGap = 360; const sorted = [...angles].sort((a, c) => a - c); for (let i = 1; i < sorted.length; i++) minGap = Math.min(minGap, sorted[i] - sorted[i - 1]);
@@ -46,7 +53,9 @@ console.log('\n=== §3 · THE BRANCH-WALK SPIRALS, it does not orbit (the golden
 console.log('\n=== §4 · THE FLAG — SAVED, and re-collapsing the SAME wound DEEPENS it (never duplicates) ===');
 {
   const store = newStore();
-  const s1 = newSession('the breakup'); rise(s1); walk(s1, 'neutral', 'it just ended'); collapse(s1, 'neutral'); seal(store, s1, 100);
+  const s1 = newSession('the breakup'); rise(s1); walk(s1, 'neutral', 'it just ended'); collapse(s1, 'neutral');
+  const first = seal(store, s1, 100);
+  ok(first.ok && first.deepened === false, 'the FIRST seal of a wound is NOT a deepening — deepened is false when this is the first collapse (recollapses === 1)');
   ok(journal(store).length === 1 && recall(store, 'the breakup').reading === 'it just ended', 'a seal is saved and recallable by its event');
   // months later, re-collapse the SAME event deeper
   const s2 = newSession('The Breakup'); rise(s2); walk(s2, 'door', 'it made room for the work I do now'); walk(s2, 'peer', "it's all good — you made it here"); collapse(s2, 'door');
@@ -65,6 +74,7 @@ console.log('\n=== §5 · THE JOURNAL — newest-first, nothing lost to the next
   const s = newSession('a'); rise(s); walk(s, 'peer', 'again'); collapse(s, 'peer'); seal(store, s, 4);
   ok(journal(store).map(x => x.event).join('') === 'acb', 're-collapsing an old event floats it back to the top');
   ok(stats(store).events === 3 && stats(store).recollapses === 4, 'the stats hold — 3 events, 4 re-collapses');
+  ok(stats(store).deepened === 1, 'deepened counts ONLY the wounds re-collapsed more than once — here just "a" (recollapses 2), not the once-sealed b and c');
 }
 
 console.log('\n=== §6 · GUARDRAIL + BACKUP + DETERMINISM + FUZZ ===');
@@ -79,6 +89,11 @@ console.log('\n=== §6 · GUARDRAIL + BACKUP + DETERMINISM + FUZZ ===');
   catch { threw = true; }
   ok(!threw, 'empty / unknown / malformed input never throws');
   ok(importStore('nonsense') === null && !seal(newStore(), newSession('x')).ok, 'a bad backup is rejected, and you cannot seal nothing');
+  // the backup validator must reject a well-formed-JSON object that is STRUCTURALLY wrong — every field must check.
+  ok(importStore({ seals: 5, order: [] }) === null, 'a backup whose seals is NOT an object is rejected (even though order is a valid array)');
+  ok(importStore({ seals: {}, order: 'not-an-array' }) === null, 'a backup whose order is NOT an array is rejected (even though seals is a valid object)');
+  ok(importStore({ order: [] }) === null, 'a backup missing seals entirely is rejected');
+  ok(importStore({ seals: {}, order: [] }) !== null, 'a structurally valid empty backup is ACCEPTED — the validator is not just rejecting everything');
 }
 
 const done = fail === 0;
