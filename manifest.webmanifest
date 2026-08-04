@@ -1,0 +1,13 @@
+{
+  "name": "re-collapse — the event is fixed, the meaning is yours to re-choose",
+  "short_name": "re-collapse",
+  "description": "A quiet reframing practice, made permanent. Name a fixed past event, rise above it, walk its readings, and choose the one that opens the most future — then seal it. Every re-collapse is saved and never lost.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0a0b14",
+  "theme_color": "#0a0b14",
+  "icons": [
+    { "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%230a0b14'/%3E%3Cg fill='none' stroke='%23e8c06a' stroke-width='2.5'%3E%3Ccircle cx='50' cy='50' r='30' opacity='.5'/%3E%3Ccircle cx='50' cy='50' r='18' opacity='.75'/%3E%3C/g%3E%3Ccircle cx='50' cy='50' r='4' fill='%23e8c06a'/%3E%3C/svg%3E", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
